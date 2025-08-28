@@ -713,33 +713,3 @@ plt.ylabel("porcentaje de error")
 plt.xscale("log")
 # Mostrar gráfica
 plt.show()
-# p1= entrenamiento(M[0],K=16,SNR_dB=0.2,precision=5,num_samples=1000)
-# p2= entrenamiento(M[1],K=16,SNR_dB=0.2,precision=5,num_samples=1000)
-
-# plt.plot(Pvalues,scores)
-# plt.title("Experimento variando precisión")
-# # plt.xlabel("Lr")
-# plt.ylabel("Precisión")
-# # plt.savefig("accvslr", dpi=300)
-# plt.show()
-
-
-# archivo=red[2]
-# #for archivo in archivos_a_guardar:
-# if os.path.exists(archivo):
-#     shutil.move(archivo, daily_folder_path)
-#     print(f"✅ Archivo '{archivo}' guardado en: {daily_folder_path}")
-# else:
-#     print(f"⚠️ Archivo '{archivo}' no encontrado.")
-
-# plt.plot(red[1])
-# arr = np.arange(1, 51, 1)
-# plt.title("Error")
-# plt.ylim(-1,2)
-# plt.show()
-# plt.savefig("precision_vsAntenas", dpi=300)
-
-# name = f"modelo_2signals.pth"
-
-# model=red[3]
-# torch.save(model.state_dict(), name)
