@@ -414,15 +414,15 @@ def probarModelo(M,K,SNR_dB,precision,num_samples,L,modelo):
 
                     er2.append(fallo)
                     erabs2.append(falloabs)
-                if len(er2) > 0:
-                    prome = sum(er2) / len(er2)
-                else:
-                    prome = 0  # or some other default value
+            if len(er2) > 0:
+                prome = sum(er2) / len(er2)
+            else:
+                prome = 0  # or some other default value
 
-                if len(erabs2) > 0:
-                    promeabs = sum(erabs2) / len(erabs2)
-                else:
-                    promeabs = 0  # or some other default value
+            if len(erabs2) > 0:
+                promeabs = sum(erabs2) / len(erabs2)
+            else:
+                promeabs = 0  # or some other default value
 
             #e_relativo= np.mean([fallo,fallo2])
             #print(prome)
@@ -482,13 +482,14 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L):
   array_po = np.linspace(0, (M-1), M) #para indices
 
   clases= len(angles_de)
-  nametext=fecha_hora()
-
+  nametext=fecha_hora() 
+  now4_str = now2.strftime("%H_%M_%S")
+  print("Comienza la prueba:",now4_str)
   X_data, y_labels = datos1_2(result,array_po,SNR_dB,K,num_samples,M,mapas,L)
   # print(f"Min label: {np.min(y_labels)}, Max label: {np.max(y_labels)}")
   train_loader, val_loader, X_train, X_val, y_train, y_val=dataset_(X_data, y_labels)
 
-  model,device=modelo(M,K,clases) ###### <-------- MODELO
+  model,device=modelo(M,K,clases) ################################## <-------- MODELO
 
   valores, cuentas = np.unique(y_labels, return_counts=True)
 
@@ -527,10 +528,10 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L):
   print(f"Prueba con {M} antenas, {num_samples} muestras , Snapshots={K}, Modelo= DeepMLP,  Epocas={num_epochs}, Precision={precision}, Potencia del ruido={SNR_dB}, Señales= {L}\n")
 
   # Crear archivo y escribir encabezado
-  with open(nametext, "w") as f:
-      f.write("# DeepMLP Training Log\n")
-      f.write(f"# Muestras={num_samples}, Antenas={M}, Snapshots={K}, Modelo= DeepMLP,  Epocas={num_epochs}, Precision={precision}, Potencia del ruido={SNR_dB}, Señales= {L}\n")
-      f.write("Epoca\tPrecision de entren:(%)\t\tPrecision de val:(%)\t\tError relativo(%)\n")
+#   with open(nametext, "w") as f:
+#       f.write("# DeepMLP Training Log\n")
+#       f.write(f"# Muestras={num_samples}, Antenas={M}, Snapshots={K}, Modelo= DeepMLP,  Epocas={num_epochs}, Precision={precision}, Potencia del ruido={SNR_dB}, Señales= {L}\n")
+#       f.write("Epoca\tPrecision de entren:(%)\t\tPrecision de val:(%)\t\tError relativo(%)\n")
 
   #accs = []
   for epoch in range(num_epochs):
@@ -654,26 +655,25 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L):
           max_val_acc=[nuevoVal, epoch+1];
 
       # Guardar en archivo
-      with open(nametext, "a") as f:
-            f.write(f"{epoch+1}\t\t\t{acc:.2f}%\t\t\t\t\t\t{val_acc:.2f}%\t\t\t\t {media:.2f}%\n")
+    #   with open(nametext, "a") as f:
+    #         f.write(f"{epoch+1}\t\t\t{acc:.2f}%\t\t\t\t\t\t{val_acc:.2f}%\t\t\t\t {media:.2f}%\n")
 
   # Convert the list of training losses to a numpy array after the loop
   ratioerror = np.array(train_losses_list)
   print(f"-----------------------------------------------------")
+  now3_str = now2.strftime("%H_%M_%S")
+  print("Se acabó la prueba a las:",now3_str)
   x = np.arange(len(preci))
   #plt.plot(x, preci, marker='o', linestyle='-')
   plt.ylabel("Precisión")
   plt.xlabel("Epocas")
   #plt.show()
-  with open(nametext, "a") as f:
-    f.__del__
+#   with open(nametext, "a") as f:
+#     f.__del__
   #         0             1         2      3      4       5       6       7
   return max_val_acc,ratioerror,nametext,model,X_train, X_val, y_train, y_val,device
 
 
-#X_data, y_labels = crearsignals(10,10,0.1,5,50000)
-#M_values=[10,15,20,25] #antenas
-#M_values=[0.0001]#, 0.001, 0.005, 0.009, 0.01] #learning rate
 M=30;
 #Kvalues=[10,16,32,64,128]
 K=16
@@ -696,7 +696,7 @@ for Kv in noises:
     prueba=probarModelo(M,K,Kv,precision,pruebas,signal,red[3])
     errores.append(prueba[0])
     erroresAbs.append(prueba[1])
-categorias = ["0.01","0.1","1","10","100"]
+
 plt.plot(noises,errores)
 # Añadir título y etiquetas
 plt.title("Errores relativos")
