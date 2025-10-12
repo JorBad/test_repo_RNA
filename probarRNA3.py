@@ -136,6 +136,38 @@ def dataset_(X_data, y_labels):
   return train_loader, val_loader, X_train, X_val, y_train, y_val
 
 
+def modelo3(M,K,clases):
+  #clases= 180/precision
+  class DeepMLP(nn.Module):
+      def __init__(self, input_size=2*M*K, output_size=clases):
+          super(DeepMLP, self).__init__()
+          self.model = nn.Sequential(
+              nn.Linear(input_size, 512),
+              # nn.ReLU(),
+              nn.Tanh(),
+              # nn.Sigmoid(),
+              nn.Dropout(0.3),
+              nn.Linear(512, 256),
+              # nn.ReLU(),
+              # nn.Sigmoid(),
+              nn.Tanh(),
+              nn.Dropout(0.3),
+              nn.Linear(256, 128),
+              # nn.ReLU(),
+              nn.Sigmoid(),
+              # nn.Tanh(),
+              nn.Linear(128, int(clases))
+          )
+
+      def forward(self, x):
+          return self.model(x)
+
+  # Instancia del modelo
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  #model = MLPClassifier().to(device)
+  model = DeepMLP().to(device)
+  return model,device
+
 def modelo(M,K,nclases):
   #clases= 180/precision
   clases=nclases
