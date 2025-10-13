@@ -300,21 +300,26 @@ def modelo3(M,K,clases):
       def __init__(self, input_size=2*M*K, output_size=clases):
           super(DeepMLP, self).__init__()
           self.model = nn.Sequential(
-              nn.Linear(input_size, 512),
-              # nn.ReLU(),
-              nn.Tanh(),
-              # nn.Sigmoid(),
-              nn.Dropout(0.3),
-              nn.Linear(512, 256),
-              # nn.ReLU(),
-              # nn.Sigmoid(),
-              nn.Tanh(),
-              nn.Dropout(0.3),
-              nn.Linear(256, 128),
-              # nn.ReLU(),
-              nn.Sigmoid(),
+              nn.Linear(input_size, 1024),
+              nn.ReLU(),
               # nn.Tanh(),
-              nn.Linear(128, int(clases))
+              # nn.Sigmoid(),
+              nn.Dropout(0.3),
+              nn.Linear(1024, 1024),
+              nn.ReLU(),
+              # nn.Sigmoid(),
+              # nn.Tanh(),
+              nn.Dropout(0.3),
+              nn.Linear(1024, 1024),
+              nn.ReLU(),
+              # nn.Sigmoid(),
+              # nn.Tanh(),
+              nn.Dropout(0.3),
+              nn.Linear(1024, 1024),
+              nn.ReLU(),
+              # nn.Sigmoid(),
+              # nn.Tanh(),
+              nn.Linear(1024, int(clases))
           )
 
       def forward(self, x):
@@ -550,7 +555,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
 
   nX_data = np.empty((0, 3200))
   ny_labels = np.empty((0, 120))  # array vacío con 0 filas y 120 columnas
-  ruidos=[10]
+  ruidos=[5,20,25,30]
   for trainer in ruidos:
     X_data, y_labels = datos2(result,array_po,trainer,K,num_samples,M,mapas,L,t)
     # print("Len Xdata:",len(X_data))
@@ -561,7 +566,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
     # SNR_dB=SNR_dB+0.05;
   train_loader, val_loader, X_train, X_val, y_train, y_val=dataset_(nX_data, ny_labels)
 
-  model,device=modelo(M,K,clases) ################################## <-------- MODELO
+  model,device=modelo3(M,K,clases) ################################## <-------- MODELO
 
   valores, cuentas = np.unique(y_labels, return_counts=True)
 
@@ -735,6 +740,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
   # Convert the list of training losses to a numpy array after the loop
   ratioerror = np.array(train_losses_list)
   print(f"-----------------------------------------------------")
+  now2 = datetime.now(zona_mex)
   now3_str = now2.strftime("%H_%M_%S")
   print("Se acabó la prueba a las:",now3_str)
   x = np.arange(len(preci))
@@ -754,13 +760,13 @@ K=100
 SNR_dB=10
 precision=1;
 Pvalues=[5]
-num_samples=30000
+num_samples=50000
 pruebas=1000
 lr=0.0001
 fs = 10e9;
 t= np.arange(0,1e-6,1/fs);
 noises=[0.01,0.1,1,2]
-signals=[2]
+signals=[5]
 signal=2
 scores = []
 errores = []
@@ -790,7 +796,7 @@ for Kv in signals:
 # # Mostrar gráfica
 # plt.show()
 
-name = f"modelo_vs_cnn.pth"
+name = f"modelo3_200k_vs_cnn_.pth"
 
 model=red[3]
 torch.save(model.state_dict(), name)

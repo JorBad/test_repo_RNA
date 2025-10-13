@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+## CODIGO QUE GENERA LA COMPARACIÓN ENTRE FUCHS Y NOSOTROS
+
+
 # ============================
 # === 1. Datos del Sistema 1 ==
 # ============================
@@ -27,23 +31,41 @@ errores_rel_1 = np.array([
 # === 2. Datos del Sistema 2 ==
 # ============================
 errores_abs_2 = np.array([
-    13.956375838926174, 11.878787878787879, 6.837837837837838, 3.3557046979865772,
-    2.5418060200668897, 2.802675585284281, 1.3945578231292517, 1.7591973244147157,
-    2.016949152542373, 2.8277027027027026, 1.6195286195286196
+    12.506711409395972, 10.308474576271186, 3.249158249158249, 0.7635135135135135, 
+    0.6148648648648649, 0.8993288590604027, 0.7643097643097643, 0.8885135135135135, 
+    1.121212121212121, 0.5933333333333334, 0.6778523489932886
 ])
 
 raices_2 = np.array([
-    27.71436195523647, 25.360747478935934, 19.756683188537618, 13.257359305592338,
-    11.425968835030817, 12.709352390698543, 7.903411764913504, 9.483654279467505,
-    10.361912505383877, 12.936067282396682, 8.764545560566658
+    26.16207334, 22.28026608, 13.16798918,  8.78054316,  6.20693497,  4.47326514,
+  5.98658467,  5.051991, 5.61612111,  4.84452142,  7.47014259
 ])
 
 errores_rel_2 = np.array([
-    80.79139670095577, 67.33346826590338, 36.756171856447345, 19.58851855106026,
-    17.088404119508564, 14.896672465329265, 8.594683879678314, 11.199768048637187,
-    9.90169817082386, 12.562289321702691, 11.231428934930447
+    73.62158254842291, 59.73281541039179, 30.155237628245253, 9.752324534496399, 
+    6.0738527447634345, 4.420868425809209, 6.195761499101364, 8.410425297979653, 
+    4.300540205362438, 6.480196656778979, 7.265170181448091
 ])
 
+# ============================
+# === Datos del modelo para 200k entradas ==
+# ============================
+errores_abs_3 = np.array([
+    13.53924914675768, 10.01010101010101, 3.2576271186440677, 0.7190635451505016,
+      1.227891156462585, 0.5709459459459459, 0.6262626262626263, 0.8355704697986577, 
+      0.5661016949152542, 0.9264214046822743, 0.4478114478114478
+])
+
+raices_3 = np.array([
+    27.04946534, 22.64950331, 13.02049666,  5.4877662,   8.36259467,  3.73961146,
+  5.11690738,  6.41140083,  4.26374098,  6.81669544,  4.05106992
+])
+
+errores_rel_3 = np.array([
+    78.02409843307969, 59.46466039536174, 23.074006881939237, 4.15540603145154, 
+    8.905774859595255, 4.970423730865655, 5.117818903570975, 5.166214241743635, 
+    3.6429691999065783, 5.119012387028041, 3.290345219882142
+])
 # ==========================================
 # === 3. Eje X (definido por el usuario) ===
 # ==========================================
@@ -58,8 +80,9 @@ plt.figure(figsize=(12, 10))
 
 # --- Variable 1: Errores absolutos ---
 plt.subplot(3, 1, 1)
-plt.plot(x, errores_abs_1, 'o-', label='Modelo de Fuchs', linewidth=2)
-plt.plot(x, errores_abs_2, 's--', label='Mi modelo', linewidth=2)
+plt.plot(x, errores_abs_1, 'o-', label='Modelo de Fuchs 40k datos', linewidth=2)
+plt.plot(x, errores_abs_2, 's--', label='Modelo de Fuchs 80k datos', linewidth=2)
+plt.plot(x, errores_abs_3, 's-', label='Modelo de Fuchs 200k datos', linewidth=2)
 plt.title('Comparación de Errores Absolutos')
 plt.xlabel("SNR, [dB]")
 plt.ylabel('Error absoluto [°]')
@@ -69,8 +92,9 @@ plt.grid(True)
 
 # --- Variable 2: Raíces ---
 plt.subplot(3, 1, 2)
-plt.plot(x, raices_1, 'o-', label='Modelo de Fuchs', linewidth=2)
-plt.plot(x, raices_2, 's--', label='Mi modelo', linewidth=2)
+plt.plot(x, raices_1, 'o-', label='Modelo de Fuchs 40k datos', linewidth=2)
+plt.plot(x, raices_2, 's--', label='Modelo de Fuchs 80k datos', linewidth=2)
+plt.plot(x, raices_3, 's-', label='Modelo de Fuchs 200k datos', linewidth=2)
 plt.title('Comparación de Raíces')
 plt.xlabel("SNR, [dB]")
 plt.ylabel('RMSE')
@@ -80,8 +104,9 @@ plt.grid(True)
 
 # --- Variable 3: Errores relativos ---
 plt.subplot(3, 1, 3)
-plt.plot(x, errores_rel_1, 'o-', label='Modelo de Fuchs', linewidth=2)
-plt.plot(x, errores_rel_2, 's--', label='Mi modelo', linewidth=2)
+plt.plot(x, errores_rel_1, 'o-', label='Modelo de Fuchs 40k datos', linewidth=2)
+plt.plot(x, errores_rel_2, 's--', label='Modelo de Fuchs 80k datos', linewidth=2)
+plt.plot(x, errores_rel_3, 's-', label='Modelo de Fuchs 200k datos', linewidth=2)
 plt.title('Comparación de Errores Relativos (%)')
 plt.xlabel("SNR, [dB]")
 plt.ylabel('Error relativo (%)')
