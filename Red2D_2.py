@@ -13,10 +13,12 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 
-import os
+# import os
 #import datetime
 #from google.colab import drive
-import shutil
+import csv
+import os
+# import matplotlib.pyplot as plt
 
 ## Parámetros
 #M = 10               # Número de sensores
@@ -57,192 +59,69 @@ def fecha_hora():
   nametext = f"epocas_DeepMLP_{now_str}.txt"
   return nametext
 
-def datos(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa):
-  # Inicialización
-  X_data = np.zeros((num_samples, 2*M*K))  # Entradas reales
-  y_labels = np.zeros((num_samples,), dtype=int)  # Etiquetas de clase (índices)
-  for n in range(num_samples):
-      # Ángulo verdadero (una clase aleatoria)
-      #theta_deg = np.random.choice(angles_deg)
-      theta_deg= angles_deg[n]
-      #print(theta_deg)
-      theta_rad = np.deg2rad(theta_deg)
-      #print(f"Etapa {n}")
-      # Señal incidente (misma para todos los snapshots)
-      alpha = 1#np.random.randn()  # amplitud aleatoria real
-      steering_vector = np.exp(1j  * np.pi/2 * array_pos * np.sin(theta_rad))
+def guardar_resultados(nombre_archivo, escenario, error_abs, rmse, error_rel):
+    """
+    Guarda los resultados de un escenario en un archivo CSV.
+    Cada fila tiene: conjunto, escenario, y1...y11
+    """
+    conjuntos = {
+        "Error absoluto": error_abs,
+        "RMSE": rmse,
+        "Error relativo": error_rel
+    }
 
-      # Señales incidentes con fase aleatoria para cada snapshot
-      signal_snapshots = []
-      for _ in range(K):
-          random_phase = np.exp(1j * 2 * np.pi * np.random.rand())
-          s = alpha * random_phase * steering_vector
-          # Añadir ruido complejo
-          noise = (np.random.randn(M) + 1j * np.random.randn(M)) * SNR_dB
-          snapshot = s + noise
-          #print(f"Añado ruido {K}")
-          signal_snapshots.append(snapshot)
+    # Crear archivo si no existe y escribir encabezado
+    existe = os.path.exists(nombre_archivo)
+    with open(nombre_archivo, 'a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        if not existe:
+            encabezado = ['conjunto', 'escenario'] + [f'y{i+1}' for i in range(len(error_abs))]
+            writer.writerow(encabezado)
+        # Escribir los tres conjuntos
+        for conjunto, datos in conjuntos.items():
+            # Asegurar que sean listas de Python (por si son tensores)
+            if hasattr(datos, "detach"):
+                datos = datos.detach().cpu().numpy().tolist()
+            fila = [conjunto, escenario] + list(map(float, datos))
+            writer.writerow(fila)
 
-      # Matriz X: K snapshots x M sensores
-      X = np.vstack(signal_snapshots)  # K x M
-      # Entrada real: Re(X^T), Im(X^T) → (K x M) x 2 → vector de tamaño 2MK
-      Z = np.concatenate([X.T.real.flatten(), X.T.imag.flatten()])
+    # print(f"✅ Datos del {escenario} guardados en {nombre_archivo}")
 
-      X_data[n, :] = Z
-      #y_labels[n] = np.where(angles_deg == theta_deg)[0][0]
-      y_labels[n] = mapa[theta_deg]
+def graficar_resultados(nombre_archivo, x_values):
+    """
+    Genera 3 gráficos (uno por conjunto) con todos los escenarios.
+    Eje Y logarítmico.
+    """
+    # Leer todas las filas del CSV
+    with open(nombre_archivo, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        encabezado = next(reader)
+        datos = list(reader)
 
-      # # Tomar el primer snapshot del primer sample
-      # snapshot_0 = signal_snapshots[0]
+    # Agrupar por conjunto
+    conjuntos = {}
+    for fila in datos:
+        conjunto = fila[0]
+        escenario = fila[1]
+        valores_y = list(map(float, fila[2:]))
+        if conjunto not in conjuntos:
+            conjuntos[conjunto] = []
+        conjuntos[conjunto].append((escenario, valores_y))
 
-      # plt.figure()
-      # plt.plot(np.real(snapshot_0), label="Parte real")
-      # plt.plot(np.imag(snapshot_0), label="Parte imaginaria")
-      # plt.title("Snapshot 0 - Señal compleja")
-      # plt.xlabel("Índice del sensor")
-      # plt.ylabel("Amplitud")
-      # plt.legend()
-      # plt.grid(True)
-      # plt.show()
-  return X_data, y_labels
+    # Generar una figura por conjunto
+    for conjunto, escenarios in conjuntos.items():
+        plt.figure()
+        for escenario, valores_y in escenarios:
+            plt.plot(x_values, valores_y, marker='o', label=escenario)
 
-def datos1_2(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa,L):
-  # Inicialización
-  X_data = np.zeros((num_samples, 2*M*K))  # Entradas reales
-
-  y_labels = np.zeros((num_samples,len(mapa)), dtype=int)  # Etiquetas de clase binarias
-
-  #y_labels = np.zeros((num_samples,), dtype=int)  # Etiquetas de clase (índices)
-
-  #print(y_labels)
-  thetas=np.zeros(L)
-  # Initialize steering_vector as a list to hold arrays
-  steering_vectors = []
-  for m in range(num_samples):
-    stv=np.zeros((M,1))
-    #print(stv)
-    steering_vectors.clear() # Clear for each sample
-    for i in range(L):
-      # Ángulo verdadero (una clase aleatoria)
-      thetas[i] = np.random.choice(angles_deg)
-      theta_rad = np.deg2rad(thetas[i])
-      # Calculate the steering vector for the current source
-      stv = np.exp(1j * np.pi * array_pos * np.sin(theta_rad))
-      # Append the steering vector to the list
-      # steering_vectors.append(stv)
-      steering_vectors.append(stv.reshape(-1, 1))
-    #print(thetas)
-    # Convert the list of steering vectors to a numpy array
-    #steering_vectors_array = np.array(steering_vectors)
-    # print(steering_vectors[0])
-    # print(steering_vectors[1])
-
-    #alpha = np.random.rand(L,1)  # amplitud aleatoria original --->>  .randn
-    alpha= np.ones(L)
-    R=np.zeros((M,K),complex)
-
-
-
-    for n in range(K):#K
-      #tmp=np.zeros((M,1))
-      #print(tmp)
-      tmp=0
-      for a in range(L):
-        random_phase = np.exp(1j *2 * np.pi * np.random.rand())
-        tmp = tmp+alpha[a] * random_phase * steering_vectors[a]  # <----PARA AMPLITUD ALEATORIA
-        #tmp = tmp * random_phase * steering_vectors[a]
-
-      noise = (np.random.randn(M,1) + 1j * np.random.randn(M,1)) * SNR_dB
-      R[:,n] = (tmp + noise).flatten()
-
-    Z = np.concatenate([R.T.real.flatten(), R.T.imag.flatten()])
-
-    X_data[m, :] = Z
-
-    #y_labels[m] = mapa[thetas[0]]  # <----------------- PARA ETIQUETAS DE INDICES
-    for theta in thetas:
-      y_labels[m, mapa[theta]] = 1  # etiqueta BINARIA de longitud G
-
-  return X_data, y_labels
-import numpy as np
-
-def datos2D(angles_deg, array_pos, SNR_dB, K, num_samples, M, mapa, L, t, mapaphi, anglesphi):
-    # Initialization
-    X_data = np.zeros((num_samples, 2*M*M*K))  # Real inputs
-    longi = len(mapa) + len(mapaphi)
-    y_labels1 = np.zeros((num_samples, len(mapa)), dtype=int)  # Binary labels for theta
-    y_labels2 = np.zeros((num_samples, len(mapaphi)), dtype=int)  # Binary labels for phi
-    y_labels = np.empty((0, longi))
-    srl = 10 ** (SNR_dB / 10)
-    pruido = 1 / srl
-
-    # Precompute angle values in radians
-    angles_deg_rad = np.deg2rad(angles_deg)
-    anglesphi_rad = np.deg2rad(anglesphi)
-
-    # Precompute steering vector calculation for each sample
-    steering_vectors = np.zeros((L, M, 1), dtype=complex)
-    steering_vectorsp = np.zeros((L, M, 1), dtype=complex)
-
-    for m in range(num_samples):
-        # Clear and recompute the steering vectors for each sample
-        thetas = np.random.choice(angles_deg_rad, size=L)  # Choose L random thetas
-        phis = np.random.choice(anglesphi_rad, size=L)  # Choose L random phis
-
-        # Compute the steering vectors for all angles in one go
-        # Compute the steering vectors for all angles in one go
-        for i in range(L):
-            theta_rad = thetas[i]
-            phi_rad = phis[i]
-            # Steering vector for lambda/2 (reshaped as a column vector)
-            steering_vectors[i] = (np.pi * array_pos * np.sin(theta_rad) * np.sin(phi_rad)).reshape(-1, 1)
-            # Steering vector for lambda/2 in the phi direction (reshaped as a column vector)
-            steering_vectorsp[i] = (np.pi * np.sin(theta_rad) * np.cos(phi_rad)).reshape(-1, 1)
-
-
-        # Initialize R matrix
-        R = np.zeros((M * M, K), dtype=complex)
-
-        # Precompute omega
-        omeg = 2 * np.pi * 1e9
-
-        # Noise (generated once for all samples)
-        noise = (np.random.randn(M * M, K)) * pruido
-
-        # Compute the received signal for each sample
-        for n in range(K):
-            tmp = np.zeros((M * M, 1), dtype=complex)
-
-            for a in range(L):
-                # Efficient computation of tmp using broadcasting
-                for ant in range(M):
-                    indice = ant + (M - 1) * ant
-                    tmp[indice:indice + M] += np.exp(1j * (omeg * t[n] - steering_vectors[a])) + \
-                                              np.exp(1j * (omeg * t[n] - steering_vectorsp[a] * array_pos[ant]))
-
-            R[:, n] = (tmp.flatten() + noise[:, n]).flatten() 
-
-        # Flatten and combine the real and imaginary parts of R
-        Z = np.concatenate([R.T.real.flatten(), R.T.imag.flatten()])
-        X_data[m, :] = Z
-
-        # Update y_labels
-        theta_deg = np.degrees(theta)
-        theta_deg_rounded = round(theta_deg, 2)  # Round to 2 decimal places
-        for theta in thetas:
-          y_labels1[m, mapa[theta_deg_rounded]] = 1  # Convert theta from radians to degrees before using it as a key
-
-        phi_deg = np.degrees(phi)
-        theta_deg_rounded
-
-        for phi in phis:
-          y_labels2[m, mapaphi[np.degrees(phi)]] = 1 
-
-        # Concatenate both label arrays
-        y_labels = np.concatenate((y_labels1, y_labels2), axis=1)
-
-    return X_data, y_labels
-
+        plt.title(f"Comparación de {conjunto}")
+        plt.xlabel("Ruidos")
+        plt.ylabel(conjunto)
+        plt.yscale('log')
+        plt.grid(True, which="both", ls="--", linewidth=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
 def datos2(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa,L,t,mapaphi,anglesphi):
   # Inicialización
@@ -346,9 +225,9 @@ def datos2_opti(angles_deg, array_pos, SNR_dB, K, num_samples, M, mapa, L, t, ma
         phis = np.random.choice(anglesphi, size=L)
         theta_rad = np.deg2rad(thetas).reshape(-1, 1)
         phi_rad = np.deg2rad(phis).reshape(-1, 1)
-        print("thetas:",thetas)
-        print("phis:",phis)
-        print("Muestra:",m)
+        # print("thetas:",thetas)
+        # print("phis:",phis)
+        # print("Muestra:",m)
 
         # Vector de dirección para cada señal incidente
         sin_theta = np.sin(theta_rad)
@@ -555,7 +434,8 @@ def modelo(M,K,nclases):
 
 def probarModelo(M,K,SNR_dB,precision,num_samples,L,modelo,t):
     model=modelo
-    angles_de = np.arange(-60, 60, precision)
+    angles_de = np.arange(0, 90, precision)
+    angles_phi = np.arange(0, 360, 180)
     clases= len(angles_de)
 
     # model,device=modelo(M,K,clases) ###### <-------- MODELO
@@ -585,14 +465,46 @@ def probarModelo(M,K,SNR_dB,precision,num_samples,L,modelo,t):
     # print(result)
     np.random.shuffle(result2)
 
+    mapas_phi = {valor: idx for idx, valor in enumerate(angles_phi)}
+    #   print("mapas de phi:",mapas_phi)
+    #   n_total=num_samples
+    numdatos_phi= len(angles_phi)
+    base_count_phi = n_total // numdatos_phi  #
+    restantes_p = n_total % numdatos_phi    #
+
+    # Inicializar la lista de salida
+    result_p = []
+
+    # Añadir base_count veces cada elemento
+    for angle in angles_phi:
+        result_p.extend([angle] * base_count_phi)
+
+    # Añadir los elementos restantes (para completar los 100)
+    # Puedes seleccionar los primeros "restantes" elementos de x
+    for i in range(restantes_p):
+        result_p.append(angles_phi[i])
+
+    # Convertir a array si se desea
+    result_p = np.array(result_p)
+    np.random.shuffle(result_p)
+
+
+    longi=len(mapas)+len(mapas_phi)
+
 
     #X_data, y_labels = datos(result,array_po,SNR_dB=SNR_dB,K=K,num_samples=num_samples,M=M,mapa=mapas)
+    ruidos=[-20,-15,-10,-5,0,5,10,15,20,25,30]
     Pglobal=[]
     absGlobal=[]
-    for ss in range(10):
+    raizGlobal=[]
+    pPglobal=[]
+    pabsGlobal=[]
+    praizGlobal=[]
+    for ss in ruidos:
         # X_datax, y_labels = datos1_2(result2,array_po,SNR_dB=SNR_dB,K=K,num_samples=num_samples,M=M,mapa=mapas,L=L)
-        X_datax, y_labels = datos2(result2,array_po,SNR_dB=SNR_dB,K=K,num_samples=num_samples,M=M,mapa=mapas,L=L,t=t)
-        train_loader, val_loader, X_train, X_val, y_train, y_val=dataset_(X_datax, y_labels)
+        # X_datax, y_labels = datos2_opti(result2,array_po,SNR_dB=SNR_dB,K=K,num_samples=num_samples,M=M,mapa=mapas,L=L,t=t)
+        X_datax, y_labels =datos2_opti(result2,array_po,ss,K,num_samples,M,mapas,L,t,mapas_phi,result_p)  
+        # train_loader, val_loader, X_train, X_val, y_train, y_val=dataset_(X_datax, y_labels)
         inp=torch.tensor(X_datax, dtype=torch.float32).to(device)
 
     
@@ -618,58 +530,107 @@ def probarModelo(M,K,SNR_dB,precision,num_samples,L,modelo,t):
         # thetas_p = np.zeros(3)
         er = []
         erabs=[]
+        ermse=[]
+        per = []
+        perabs=[]
+        permse=[]
+        mapa_invp = {v: k for k, v in mapas_phi.items()}  # mapa inverso: índice → phi
         mapa_inv = {v: k for k, v in mapas.items()}  # inverso: índice → theta
         for k in range(len(predicted)):
             # Encuentra los índices donde hay 1
             indices_p = np.where(predicted[k] == 1)[0]
             indices_y = np.where(y_labels[k] == 1)[0]
             # Convierte a los valores reales de theta
-            thetas_reales = [mapa_inv[i] for i in indices_y]
-            thetas_p = [mapa_inv[i] for i in indices_p]
-            # print(f"predicha: {thetas_p}")
-            # print(f"real: {thetas_reales}")
+            xy=0
+            indicestheta=[]
+            indicesphi=[]
+            for xy in range(len(indices_y)):
+                # print(xy)
+                if indices_y[xy] < 90/precision:
+                    indicestheta.append(indices_y[xy])
+                else: indicesphi.append(indices_y[xy]-90/precision)
+
+            thetas_reales = [mapa_inv[i] for i in indicestheta]
+            phis_reales = [mapa_invp[i] for i in indicesphi]
+            # print("phis reales",phis_reales)
+            indicestheta=[]
+            indicesphi=[]
+            xy=0
+            for xy in range(len(indices_p)):
+            #print(xy)
+                if indices_p[xy] < 90/precision:
+                    indicestheta.append(indices_p[xy])
+                else: indicesphi.append(indices_p[xy]-90/precision)
+            thetas_p = [mapa_inv[i] for i in indicestheta]
+                # print("indices phi:",indicesphi)
+            phis_p = [mapa_invp[i] for i in indicesphi]
+            # print("thetas predichas:", thetas_p)
+        
+            # print(f"predicha: {phis_p}")
+            # print(f"real: {phis_reales}")
             xx= emparejar(thetas_p, thetas_reales)
-           
+            pp= emparejar(phis_p, phis_reales)
+            # print("Parejas:",pp)   
             er2=[]
             erabs2=[]
+            ### THETAS
             for s in range(len(xx)):
                 if xx[s][0]!=0:
                     fallo= float(abs((xx[s][0]-xx[s][1])/(xx[s][0]+1e-3))*100)
+                    raiz= float((xx[s][1]-xx[s][0])**2)
                     falloabs=float(abs(xx[s][1]-xx[s][0]))
-
-                    er2.append(fallo)
-                    erabs2.append(falloabs)
-            if len(er2) > 0:
-                prome = sum(er2) / len(er2)
-            else:
-                prome = 0  # or some other default value
-
-            if len(erabs2) > 0:
-                promeabs = sum(erabs2) / len(erabs2)
-            else:
-                promeabs = 0  # or some other default value
-
-            #e_relativo= np.mean([fallo,fallo2])
-            #print(prome)
-            if prome<1000:
-                er.append(prome)
-            
-            erabs.append(promeabs)
-
+                    # print("raiz:",raiz)
+                    er.append(fallo)
+                    ermse.append(raiz)
+                    erabs.append(falloabs)
+            ## PHIS
+            for s in range(len(pp)):
+                if pp[s][0]!=0:
+                    fallop= float(abs((pp[s][0]-pp[s][1])/(pp[s][0]+1e-3))*100)
+                    raizp= float((pp[s][1]-pp[s][0])**2)
+                    falloabsp=float(abs(pp[s][1]-pp[s][0]))
+                    # print("raiz phi:",fallop)
+                    per.append(fallop)
+                    permse.append(raizp)
+                    perabs.append(falloabsp)
+        ############### THETAS ###########
         media = sum(er) / len(er)
-        # print('Error relativo',media)
+        # print('RMSE',er)
         Pglobal.append(media)
+
+        raices= np.sqrt(sum(ermse) / len(ermse))
+        raizGlobal.append(raices)
 
         mediaabs= sum(erabs) / len(erabs)
         absGlobal.append(mediaabs)
 
-    mmedia= sum(Pglobal) / len(Pglobal)
-    print("Promedio de error relativo:",mmedia)
-    Nabs = sum(absGlobal)/len(absGlobal)
-    print("Promedio de error absoluto:",Nabs)
-    return mmedia,Nabs
+        ############### phis ###########
+        pmedia = sum(per) / len(per)
+        # print('RMSE',er)
+        pPglobal.append(pmedia)
 
-def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
+        praices= np.sqrt(sum(permse) / len(permse))
+        praizGlobal.append(praices)
+
+        pmediaabs= sum(perabs) / len(perabs)
+        pabsGlobal.append(pmediaabs)
+
+    mmedia= sum(Pglobal) / len(Pglobal)
+    print("Promedio de error relativo theta:",mmedia)
+    Nabs = sum(absGlobal)/len(absGlobal)
+    print("Promedio de error absoluto theta:",Nabs)
+    nraizt= sum(raizGlobal) / len(raizGlobal)
+    print("Promedio de RMSE theta:",nraizt)
+
+    pmmedia= sum(pPglobal) / len(pPglobal)
+    print("Promedio de error relativo phi:",pmmedia)
+    pNabs = sum(pabsGlobal)/len(pabsGlobal)
+    print("Promedio de error absoluto phi:",pNabs)
+    nraizp= sum(praizGlobal) / len(praizGlobal)
+    print("Promedio de RMSE phi:",nraizp)
+    return mmedia,Nabs,nraizt,pmmedia,pNabs,nraizp,pPglobal,pabsGlobal,praizGlobal
+
+def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t,epocas):
   cont=0;
   preci = []
 
@@ -679,7 +640,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
   now2_str = now2.strftime("%H_%M_%S")
 
   angles_de = np.arange(0, 90, precision)
-  angles_phi = np.arange(0, 360, precision)
+  angles_phi = np.arange(0, 360, 180)
 
   mapas = {valor: idx for idx, valor in enumerate(angles_de)}
 
@@ -787,7 +748,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
   #optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
 
-  num_epochs = 60 ####################### <-------------- EPOCAS #####################
+  num_epochs = epocas ####################### <-------------- EPOCAS #####################
 
   print(f"Prueba con {M} antenas, {num_samples} muestras , Snapshots={K}, Modelo= DeepMLP,  Epocas={num_epochs}, Precision={precision}, SNR={SNR_dB}, Señales= {L}\n")
 
@@ -949,10 +910,10 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
   now2 = datetime.now(zona_mex)
   now3_str = now2.strftime("%H_%M_%S")
   print("Se acabó la prueba a las:",now3_str)
-  x = np.arange(len(preci))
+  # x = np.arange(len(preci))
   #plt.plot(x, preci, marker='o', linestyle='-')
-  plt.ylabel("Precisión")
-  plt.xlabel("Epocas")
+  # plt.ylabel("Precisión")
+  # plt.xlabel("Epocas")
 
   # nametext=fecha_hora() 
   # with open(nametext, "w") as f:
@@ -963,7 +924,7 @@ def entrenamiento(M,K,SNR_dB,precision,num_samples,lr,L,t):
   #         0             1         2      3      4       5       6       7
   return max_val_acc,ratioerror,nametext,model,X_train, X_val, y_train, y_val,device,ratioerrorval
 
-
+epocs=50
 M=10;
 Kvalues=[1]
 K=1
@@ -972,45 +933,80 @@ precision=5;
 Pvalues=[5]
 num_samples=100000
 pruebas=1000
-lr=0.0001
+lr=0.000001
 fs = 10e9;
 t= np.arange(0,1e-6,1/fs);
-noises=[0.01,0.1,1,2]
+epo=[100,50,10,5]
 signals=[1]
-signal=2
-
+signal=1
+rates=[0.000001,0.00001]
 scores = []
-errores = []
+loss_t = np.zeros((epocs, len(rates)))
+loss_v = np.zeros((epocs, len(rates)))
 erroresAbs=[]
-for Kv in signals:
-    red = entrenamiento(M=M, K=K, SNR_dB=SNR_dB, precision=precision, num_samples=num_samples,lr=lr,L=Kv,t=t)
-    scores.append(red[0][0])
-    # plt.plot(scores)
-    # prueba=probarModelo(M,K,SNR_dB,precision,pruebas,Kv,red[3],t)
+nomb=0
+for Kv in epo:
+    red = entrenamiento(M=M, K=K, SNR_dB=SNR_dB, precision=precision, num_samples=num_samples,lr=lr,L=signal,t=t,epocas=Kv)
+    # scores.append(red[1])
+    # errores.append(red[9])
+    # loss_t[:,nomb]= red[1]
+    # loss_v[:,nomb]= red[9]
+    if nomb==0:
+        # plt.plot(red[1],label='lr=0.00001')
+        name = f"modelo1_2Dp1_100.pth"
+        escenario = "100 épocas"
+
+    elif nomb==1: 
+        # plt.plot(red[1],label='lr=0.0001') 
+        name = f"modelo1_2Dp1_50.pth"
+        escenario = "50 épocas"
+    
+    elif nomb==2: 
+        # plt.plot(red[1],label='lr=0.001') 
+        name = f"modelo1_2Dp1_10.pth"
+        escenario = "10 épocas"
+    
+    elif nomb==3: 
+        # plt.plot(red[1],label='lr=0.001') 
+        name = f"modelo1_2Dp1_5.pth"
+        escenario = "5 épocas"
+    
+    
+    model=red[3]
+    torch.save(model.state_dict(), name)
+    nomb=nomb+1
+    prueba=probarModelo(M,K,SNR_dB,precision,pruebas,signal,red[3],t)
+    guardar_resultados("resultados3.csv", escenario, prueba[7], prueba[8], prueba[6])
     # errores.append(prueba[0])
     # erroresAbs.append(prueba[1])
 
-plt.plot(red[1],label='train loss')
-plt.plot(red[9],label='val loss')
-# # Añadir título y etiquetas
-plt.title("Errores ")
-plt.yscale('log')   # opcional, para ver mejor las diferencias
-plt.legend()
-# plt.xlabel("Señales incidentes")
-# plt.ylabel("porcentaje de error")
-# # plt.xscale("log")
-# # Mostrar gráfica
-plt.show()
+x=[-20,-15,-10,-5,0,5,10,15,20,25,30]
+graficar_resultados("resultados3.csv", x)
 
-# plt.plot(signals,erroresAbs)
-# plt.title("Errores absolutos")
-# plt.xlabel("Señales incidentes")
-# plt.ylabel("error [°]")
-# # plt.xscale("log")
-# # Mostrar gráfica
+# plt.plot(loss_t[:,0],label='train loss 0.000001')
+# plt.plot(loss_t[:,1],label='train loss 0.00001')
+# # plt.plot(red[9],label='val loss')
+# # # Añadir título y etiquetas
+# plt.title("Errores entrenamiento ")
+# # plt.yscale('log')   # opcional, para ver mejor las diferencias
+# plt.legend()
+# # plt.xlabel("Señales incidentes")
+# # plt.ylabel("porcentaje de error")
+# # # plt.xscale("log")
+# # # Mostrar gráfica
 # plt.show()
 
-name = f"modelo1_2Dp1.pth"
+# plt.plot(loss_v[:,0],label='val loss 0.000001')
+# plt.plot(loss_v[:,1],label='val loss 0.00001')
+# plt.title("Errores val")
+# # plt.xlabel("Señales incidentes")
+# # plt.ylabel("error [°]")
+# # # plt.xscale("log")
+# # # Mostrar gráfica
+# plt.legend()
+# plt.show()
 
-model=red[3]
-torch.save(model.state_dict(), name)
+# name = f"modelo1_2Dp1_0.00001.pth"
+
+# model=red[3]
+# torch.save(model.state_dict(), name)
