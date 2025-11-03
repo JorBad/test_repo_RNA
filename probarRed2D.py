@@ -13,7 +13,7 @@ import pickle
 
 def datos1_2(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa,L,t,mapaphi,anglesphi):
   # Inicialización
-  X_data = np.zeros((num_samples, 2*M*M*K))  # Entradas reales
+  X_data = np.zeros((num_samples, 2*M*K))  # Entradas reales
   longi=len(mapa)+len(mapaphi)
   y_labels1 = np.zeros((num_samples,len(mapa)), dtype=int)  # Etiquetas binarias theta
   y_labels2 = np.zeros((num_samples,len(mapaphi)), dtype=int)  # Etiquetas binarias phi
@@ -43,7 +43,8 @@ def datos1_2(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa,L,t,mapaphi,angles
       # steering vector para lambda/4
       # stv = np.pi/2 * array_pos * np.sin(theta_rad)
       # steering vector para lambda/2
-      stv = np.pi * array_pos * np.sin(theta_rad)*np.sin(phi_rad)
+      # stv = np.pi * array_pos * np.sin(theta_rad)*np.sin(phi_rad) ## ORIGINAL
+      stv = np.pi  * np.sin(theta_rad)*np.sin(phi_rad) ## DIAGONAL
       stvp = np.pi  * np.sin(theta_rad)*np.cos(phi_rad)
     #   print(stv.shape)
       # Append the steering vector to the list
@@ -53,23 +54,24 @@ def datos1_2(angles_deg,array_pos,SNR_dB,K,num_samples,M,mapa,L,t,mapaphi,angles
     print("phis:",phis)
     print("Muestra:",m)
  
-    R=np.zeros((M*M,K),complex)
+    R=np.zeros((M,K),complex)
     omeg= 2*np.pi*1e9;
 
 
     for n in range(K):#K
-      tmp=np.zeros((M*M,1))
+      tmp=np.zeros((M,1),complex) ##DIAGONAL
       #print(tmp)
     #   tmp=0
       for a in range(L):   
         for ant in range(M):    
-            indice= ant+((M-1)*(ant))
+            # indice= ant+((M-1)*(ant))
             # print("indice:",ant)
             # print("theta actual",thetas[a])
             # print("phi actual",phis[a])
-            tmp[indice:indice+(M)] = tmp[indice: indice+(M)]+ np.exp(1j*(omeg*t[n]-steering_vectors[a])) + np.exp(1j*(omeg*t[n]-steering_vectorsp[a]*array_pos[ant]))
+            # tmp[indice:indice+(M)] = tmp[indice: indice+(M)]+ np.exp(1j*(omeg*t[n]-steering_vectors[a])) + np.exp(1j*(omeg*t[n]-steering_vectorsp[a]*array_pos[ant])) ## ORIGINAL
+            tmp[ant] = tmp[ant]+ np.exp(1j*(omeg*t[n]-steering_vectors[a]*array_pos[ant])) + np.exp(1j*(omeg*t[n]-steering_vectorsp[a]*array_pos[ant])) ## DIAGONAL
             # print("Temporal",tmp)
-      noise = (np.random.randn(M*M,1)) * pruido
+      noise = (np.random.randn(M,1)) * pruido
       R[:,n] = (tmp + noise).flatten()
       # print(R)
     Z = np.concatenate([R.T.real.flatten(), R.T.imag.flatten()])
@@ -245,7 +247,7 @@ def modelo(M,K,nclases):
 def modelo3(M,K,clases):
   #clases= 180/precision
   class DeepMLP(nn.Module):
-      def __init__(self, input_size=2*M*M*K, output_size=clases):
+      def __init__(self, input_size=2*M*K, output_size=clases):
           super(DeepMLP, self).__init__()
           self.model = nn.Sequential(
               nn.Linear(input_size, 1024),
@@ -281,7 +283,7 @@ def modelo3(M,K,clases):
 
 M=10
 K=1
-num_samples=100
+num_samples=1000
 SNR_dB=0.1;
 precision=5
 lr=0.0001
@@ -292,13 +294,13 @@ t= np.arange(0,1e-6,1/fs);
 
 angles_de2 = np.arange(0, 90, precision)
 angles_de = np.arange(0, 90, precision) ### <------- para datos de prueba
-angles_phi = np.arange(0, 360, precision)
+angles_phi = np.arange(0, 360, 180)
 # clases= len(angles_de2)
 clases= len(angles_de)+len(angles_phi)
 # print(angles_de)
-model,device=modelo(M,K,clases) ###### <-------- MODELO
+model,device=modelo3(M,K,clases) ###### <-------- MODELO
 # 2. Carga los pesos
-model.load_state_dict(torch.load("modelo1_2Dp1.pth"))
+model.load_state_dict(torch.load("modelo1_2Dp1_100.pth"))
 
 array_po = np.linspace(0, (M-1), M)
 #angles_de = np.arange(0, 90, 5)
@@ -359,7 +361,7 @@ pPglobal=[]
 pabsGlobal=[]
 praizGlobal=[]
 for ss in ruidos:
-    X_datax, y_labels = datos2_opti(result,array_po,SNR_dB=ss,K=K,num_samples=num_samples,M=M,mapa=mapas,L=L,t=t,mapaphi=mapas_phi,anglesphi=result_p)
+    X_datax, y_labels = datos1_2(result,array_po,SNR_dB=ss,K=K,num_samples=num_samples,M=M,mapa=mapas,L=L,t=t,mapaphi=mapas_phi,anglesphi=result_p)
     train_loader, val_loader, X_train, X_val, y_train, y_val=dataset_(X_datax, y_labels)
     inp=torch.tensor(X_datax, dtype=torch.float32).to(device)
     # print()
@@ -416,7 +418,7 @@ for ss in ruidos:
         # print(f"real: {phis_reales}")
         xx= emparejar(thetas_p, thetas_reales)
         pp= emparejar(phis_p, phis_reales)
-        # print("Parejas:",pp)   
+        print("Parejas:",pp)   
         er2=[]
         erabs2=[]
         ### THETAS
